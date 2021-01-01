@@ -72,6 +72,10 @@ class BondTesting(TestCase):
         print("TESTING BOND RETRIEVAL")
         print("/////////////////////\n")
         self.authoriseClient()
+        createData1 = {'isin':'GB0000121104', 'size':200000, 'currency':'GBP', 'maturity':'2025-03-01', 'lei':'5493000IBP32UQZ0KL24'}
+        createData2 = {'isin':'FR0000121104', 'size':200000, 'currency':'EUR', 'maturity':'2025-03-01', 'lei':'R0MUWSFPU8MPRO8K5P83'}
+        self.client.post("/bonds/", createData1)
+        self.client.post("/bonds/", createData2)
         resp = self.client.get("/bonds/")
         print(resp.content)
         assert resp.status_code == 200
