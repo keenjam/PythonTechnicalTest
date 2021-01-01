@@ -6,6 +6,7 @@ import json, requests
 from bonds.models import Bond
 from bonds.serializers import BondSerializer
 from rest_framework.permissions import IsAuthenticated
+from bonds.permissions import IsOwner
 from rest_framework.authentication import TokenAuthentication
 
 
@@ -18,7 +19,7 @@ class HelloWorld(APIView):
 
 class Bonds(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def getLegalName(self, lei):
         updatedUrl = 'https://leilookup.gleif.org/api/v2/leirecords?lei=' + str(lei)
@@ -29,23 +30,27 @@ class Bonds(APIView):
         return legalName
 
     def get(self, request):
-        print("\nRETRIEVING...\n")
+        print("RETRIEVING...")
 
         # find, if any, request parameters
         searchParam = request.GET.get('legal_name', '')
 
-        bonds = Bond.objects.all()
+        # ensure users can only see their own data
+        user = request.user
+        bonds = Bond.objects.filter(owner=user)
 
         if(searchParam != ''):
             print("SEARCHING FOR: " + searchParam)
-            bonds = Bond.objects.filter(legal_name = searchParam)
+            bonds = Bond.objects.filter(legal_name = searchParam, owner=user)
 
         serializer = BondSerializer(bonds, many=True)
-        print(serializer.data)
         return Response(serializer.data)
 
     def post(self, request):
-        print("\nCREATING...\n")
+        print("CREATING...")
+
+        user = request.user
+
         lei = request.data['lei']
         legalName = self.getLegalName(lei)
         legalName = legalName.replace(" ", "")
@@ -56,8 +61,8 @@ class Bonds(APIView):
 
         serializer = BondSerializer(data=request.data)
         if(serializer.is_valid()):
-            print("SAVING BOND DATA...\n")
-            serializer.save()
+            print("SAVING BOND DATA...")
+            serializer.save(owner=user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
